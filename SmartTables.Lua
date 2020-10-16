@@ -10,7 +10,8 @@ local Calls = table.create(0,0)
 
 local HttpService = game:GetService("HttpService")
 
--- debug id functionalities
+-- 		[[ internal functions ]]
+-- Debug functionalitites
 function Generate(Variable)
 	Storage[Variable] = HttpService:GenerateGUID(false)
 	return Storage[Variable]
@@ -22,19 +23,17 @@ function GetDebugId(Variable)
 	end
 end
 
+-- metatable creation from template
 function CreateMetaTable(self, _Call, _Value, TableName, Store)
 	local meta = setmetatable({
 		__META__Internal_Value = _Value,
 		__META__TableName = rawget(self, "__META__TableName")
 	}, functionality)
 	
-	if Store then
-		Calls[TableName][_Call] = meta
-	end
-	
 	return meta
 end
 
+-- first occuring index finding
 function LoopTablesForIndex(Table, Index)
 	local Value
 	Index = tostring(Index)
@@ -68,10 +67,12 @@ function LoopTablesForIndex(Table, Index)
 	return Value
 end
 
+-- new indexation from the outside
 function ExternalLoopAndSet(Table, Index, Value)
 	for i,v in pairs(Table) do
 		if i == Index then
 			rawset(Table, i, Value)
+			return
 		elseif i ~= Index and typeof(v) == "table" then
 			ExternalLoopAndSet(Table[i], Index, Value)
 		end
@@ -87,48 +88,24 @@ function MetaMethodCheck(self, Name)
 	end
 end
 
--- TargetName and Shared are optional
-function module.new(Table, TargetName, Shared)
-	Shared = (Shared == nil or Shared == false) and false or (Shared == true) and true
-	TargetName = (TargetName == nil) and HttpService:GenerateGUID(false) or TargetName
-	
-	local PsuedoTable = table.create(0, 0)
-	PsuedoTable["__META__Internal_Value"] = Table
-	for i,v in pairs(Table) do
-		local index = i
-		if typeof(i) == "Instance" then
-			index = Generate(i)
-		end
-		PsuedoTable["__META__" .. index] = v
-	end
-	
-	PsuedoTable.__META__TableName = TargetName
-	PsuedoTable.__META__Shared = Shared
-	
-	local Meta = setmetatable(PsuedoTable, Initialization)
-	if Shared then
-		Calls[TargetName] = table.create(0,0)
-		Calls[TargetName]["__METAINIT__"] = Meta
-	end
-	
-	return Meta
-end
-
--- Metamethods of the first occuring table (retrieved from .new(), they require some specific structured indexation)
+-- Methods of the first occuring metatable (retrieved from .new(), they require some specific structured indexation)
 function Initialization.__index(self, index)
-	if index == "Dispose" then
-		return function()
-			if Calls[self.__META__TableName] then
-				Calls[self.__META__TableName] = nil
-			end
-			self = nil
-		end
-	end
 	return functionality.__index(self, index)
 end
 
 function Initialization.__newindex(self, index, value)
 	return ExternalLoopAndSet(self, index, value)
+end
+
+function Initialization.GetRaw(self)
+	return self["__META__Internal_Value"] 
+end
+
+function Initialization.Dispose(self)
+	if Calls[self.__META__TableName] then
+		Calls[self.__META__TableName] = nil
+	end
+	self = nil
 end
 
 -- Metamethods of all the other tables other than the one returned by .new(), Preventing :Dispose() usage.
@@ -161,12 +138,35 @@ function functionality.__newindex(self, index, value)
 	ExternalLoopAndSet(self, index, value)
 end
 
-function Initialization.GetRaw(self)
+function functionality.GetRaw(self)
 	return self["__META__Internal_Value"] 
 end
 
-function functionality.GetRaw(self)
-	return self["__META__Internal_Value"] 
+-- public functionalities from require
+function module.new(Target, Shared, TargetName)
+	Shared = (Shared == nil or Shared == false) and false or (Shared == true) and true
+	TargetName = (TargetName == nil) and HttpService:GenerateGUID(false) or TargetName
+
+	local PsuedoTable = table.create(0, 0)
+	PsuedoTable["__META__Internal_Value"] = Target
+	for i,v in pairs(Target) do
+		local index = i
+		if typeof(i) == "Instance" then
+			index = Generate(i)
+		end
+		PsuedoTable["__META__" .. index] = v
+	end
+
+	PsuedoTable.__META__TableName = TargetName
+	PsuedoTable.__META__Shared = Shared
+
+	local Meta = setmetatable(PsuedoTable, Initialization)
+	if Shared then
+		Calls[TargetName] = table.create(0,0)
+		Calls[TargetName]["__METAINIT__"] = Meta
+	end
+
+	return Meta
 end
 
 function module.GetTable(Name)
