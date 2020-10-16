@@ -2,10 +2,7 @@
 -- subjected to the MPL-2.0 License
  
 local module = table.create(3,0)
-module.__index = module
-
 local Initialization = table.create(2,0)
---local functionality = table.create(3,0)
 local Storage = table.create(0,0)
 local Calls = table.create(0,0)
 
@@ -44,6 +41,7 @@ function LoopTablesForIndex(Table, Index)
 	Index = tostring(Index)
 	
 	local function Loop(Table, Index)
+		if Value then return end
 		for i,v in pairs(Table) do
 			local index = tostring(i)
 			
