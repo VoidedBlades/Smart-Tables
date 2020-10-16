@@ -1,6 +1,6 @@
 -- Copyright (c) 2020 Jurian Vierbergen, Some Rights Reserved
 -- subjected to the MPL-2.0 License
-
+ 
 local module = table.create(3,0)
 module.__index = module
 
