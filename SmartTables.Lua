@@ -1,5 +1,3 @@
--- Copyright © 2020 Jurian Vierbergen. Some Rights Reserved.
-
 local module = table.create(3,0)
 module.__index = module
 
@@ -11,7 +9,7 @@ local Calls = table.create(0,0)
 local HttpService = game:GetService("HttpService")
 
 -- 		[[ internal functions ]]
--- Debug functionalitites
+-- functionalitites related to instance based keys
 function Generate(Variable)
 	Storage[Variable] = HttpService:GenerateGUID(false)
 	return Storage[Variable]
@@ -105,7 +103,14 @@ function Initialization.Dispose(self)
 	if Calls[self.__META__TableName] then
 		Calls[self.__META__TableName] = nil
 	end
+	
+	for i,v in pairs(self) do
+		self[i] = nil
+	end
+	
+	setmetatable(self, nil)
 	self = nil
+	return nil
 end
 
 -- Metamethods of all the other tables other than the one returned by .new(), Preventing :Dispose() usage.
