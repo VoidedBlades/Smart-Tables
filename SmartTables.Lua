@@ -25,11 +25,15 @@ function GetDebugId(Variable)
 end
 
 -- metatable creation from template
-function CreateMetaTable(self, _Call, _Value, TableName, Store)
+function CreateMetaTable(self, _Call, _Value, TableName, Store, NotInit)
 	local meta = setmetatable({
 		__META__Internal_Value = _Value,
 		__META__TableName = rawget(self, "__META__TableName")
 	}, functionality)
+	
+	if NotInit then
+		self = DisposeMetaTable(self)
+	end
 	
 	return meta
 end
@@ -99,8 +103,38 @@ function DisposeMetaTable(self)
 end
 
 -- Methods of the first occuring metatable (retrieved from .new(), they require some specific structured indexation)
-function Initialization.__index(self, index)
-	return functionality.__index(self, index, true)
+function Initialization.__index(self, index, NotInit)
+	local M_ReturnValue = MetaMethodCheck(self, index)
+	if M_ReturnValue then
+		return M_ReturnValue
+	end
+
+	if typeof(index) == "Instance" then
+		local InstanceDebugId = GetDebugId(index)
+		index = (InstanceDebugId == nil) and Generate(index) or InstanceDebugId
+	end
+
+	local Value = LoopTablesForIndex(rawget(self, "__META__Internal_Value") or self, index)
+	if Value then
+		local LoadedTable = (rawget(self, "__META__Shared")) and rawget(Calls[rawget(self, "__META__TableName")], index) or nil
+		if LoadedTable then return LoadedTable end
+
+		if typeof(Value) == "table" then
+			return CreateMetaTable(self, index, Value, rawget(self, "__META__TableName"), false, NotInit)
+		else
+			return Value
+		end
+	end
+end
+
+function Initialization.getn(self)
+	local n = 0
+	
+	for i,v in pairs(self.__META__Internal_Value) do
+		n += 1
+	end
+	
+	return n
 end
 
 function Initialization.__newindex(self, index, value)
@@ -122,41 +156,20 @@ function Initialization.Dispose(self)
 end
 
 -- Metamethods of all the other tables other than the one returned by .new(), Preventing :Dispose() usage.
-function functionality.__index(self, index, IsInit)
-	
-	local M_ReturnValue = MetaMethodCheck(self, index)
-	if M_ReturnValue then
-		return M_ReturnValue
-	end
-	
-	if typeof(index) == "Instance" then
-		local InstanceDebugId = GetDebugId(index)
-		index = (InstanceDebugId == nil) and Generate(index) or InstanceDebugId
-	end
-	
-	local Value = LoopTablesForIndex(rawget(self, "__META__Internal_Value") or self, index)
-	if Value then
-		local LoadedTable = (rawget(self, "__META__Shared")) and rawget(Calls[rawget(self, "__META__TableName")], index) or nil
-		if LoadedTable then return LoadedTable end
-		
-		if not IsInit then
-			DisposeMetaTable(self)
-		end
-		
-		if typeof(Value) == "table" then
-			return CreateMetaTable(self, index, Value, rawget(self, "__META__TableName"), false)
-		else
-			return Value
-		end
-	end
+function functionality.__index(self, index)
+	return Initialization.__index(self, index, true)
 end
 
 function functionality.__newindex(self, index, value)
-	ExternalLoopAndSet(self, index, value)
+	Initialization.__newindex(self, index, value)
 end
 
 function functionality.GetRaw(self)
-	return self["__META__Internal_Value"] 
+	return Initialization.GetRaw(self)
+end
+
+function functionality.getn(self)
+	return Initialization.getn(self)
 end
 
 -- public functionalities from require
