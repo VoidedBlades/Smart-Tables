@@ -1,5 +1,5 @@
 -- Copyright (c) 2020 Jurian Vierbergen, Some Rights Reserved
--- Subject to the MPL-2.0 License
+-- subjected to the MPL-2.0 License
 
 local module = table.create(3,0)
 module.__index = module
@@ -89,9 +89,18 @@ function MetaMethodCheck(self, Name)
 	end
 end
 
+function DisposeMetaTable(self)
+	for i,v in pairs(self) do
+		self[i] = nil
+	end
+	
+	setmetatable(self, nil)
+	self = nil
+end
+
 -- Methods of the first occuring metatable (retrieved from .new(), they require some specific structured indexation)
 function Initialization.__index(self, index)
-	return functionality.__index(self, index)
+	return functionality.__index(self, index, true)
 end
 
 function Initialization.__newindex(self, index, value)
@@ -107,17 +116,13 @@ function Initialization.Dispose(self)
 		Calls[self.__META__TableName] = nil
 	end
 	
-	for i,v in pairs(self) do
-		self[i] = nil
-	end
+	DisposeMetaTable(self)
 	
-	setmetatable(self, nil)
-	self = nil
 	return nil
 end
 
 -- Metamethods of all the other tables other than the one returned by .new(), Preventing :Dispose() usage.
-function functionality.__index(self, index)
+function functionality.__index(self, index, IsInit)
 	
 	local M_ReturnValue = MetaMethodCheck(self, index)
 	if M_ReturnValue then
@@ -133,6 +138,10 @@ function functionality.__index(self, index)
 	if Value then
 		local LoadedTable = (rawget(self, "__META__Shared")) and rawget(Calls[rawget(self, "__META__TableName")], index) or nil
 		if LoadedTable then return LoadedTable end
+		
+		if not IsInit then
+			DisposeMetaTable(self)
+		end
 		
 		if typeof(Value) == "table" then
 			return CreateMetaTable(self, index, Value, rawget(self, "__META__TableName"), false)
