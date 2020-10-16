@@ -5,7 +5,7 @@ local module = table.create(3,0)
 module.__index = module
 
 local Initialization = table.create(2,0)
-local functionality = table.create(3,0)
+--local functionality = table.create(3,0)
 local Storage = table.create(0,0)
 local Calls = table.create(0,0)
 
@@ -29,7 +29,7 @@ function CreateMetaTable(self, _Call, _Value, TableName, Store, NotInit)
 	local meta = setmetatable({
 		__META__Internal_Value = _Value,
 		__META__TableName = rawget(self, "__META__TableName")
-	}, functionality)
+	}, Initialization)
 	
 	if NotInit then
 		self = DisposeMetaTable(self)
@@ -155,23 +155,6 @@ function Initialization.Dispose(self)
 	return nil
 end
 
--- Metamethods of all the other tables other than the one returned by .new(), Preventing :Dispose() usage.
-function functionality.__index(self, index)
-	return Initialization.__index(self, index, true)
-end
-
-function functionality.__newindex(self, index, value)
-	Initialization.__newindex(self, index, value)
-end
-
-function functionality.GetRaw(self)
-	return Initialization.GetRaw(self)
-end
-
-function functionality.getn(self)
-	return Initialization.getn(self)
-end
-
 -- public functionalities from require
 function module.new(Target, Shared, TargetName)
 	Shared = (Shared == nil or Shared == false) and false or (Shared == true) and true
@@ -208,4 +191,3 @@ function module.GetTable(Name)
 end
 
 return module
-
